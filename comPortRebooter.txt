@@ -1,0 +1,90 @@
+﻿# Powershell script to manipulate service and reboot COM-port modem
+
+# Set sheduler start
+$startHour = 18
+
+# Set sheduler end
+$stopHour = 23
+
+# Set sheduler timeout
+$timerHour = 1
+
+# Set service name
+$myService = "..."
+
+# Set plink utility path
+$myPath = "..."
+
+# Set Com-port modem number added in putty program
+$myCom = "..."
+
+# Start execution
+$ticHour = $startHour
+
+While($true)
+{
+ # Get current hour
+ $currentHour = Get-Date -f "HH"
+
+ # Сompare time
+ $ticHourString = "" + $ticHour
+ if($currentHour -eq $ticHourString)
+ {
+  
+  # Check service name
+  if(-Not ($myService -eq "..." )) 
+  {
+   # Try to stop service 
+   Get-Service $myService | Where {$_.status -eq 'Running'} | Stop-Service
+   Write-Host Service has stopped
+   $returnCode = 0
+  } else {
+   Write-Host Service for stop was not set. Stop nothing
+   $returnCode = 0
+  } 
+
+  # check path to putty plink utility
+  if(-Not ($myPath -eq "...")) 
+  {  
+   if(Test-Path $myPath) 
+   {
+    
+    # chek if Com-port was set
+    if(-Not ($myCom -eq "...")) 
+    { 
+     Start-Job -ScriptBlock {"(echo at+cfun=1,1) | " + $myPath  + "-load " + $myCom }
+     sleep -seconds 5
+     Get-Job | Remove-Job -Force
+     Write-Host Com-port modem has rebooted
+     $returnCode = 0
+    } else { Write-Host Com-port was not set }
+   } else {  Write-Host Putty Plink utility not found }
+  } else {  Write-Host Path to Putty Plink utility did not set }  
+
+  # Start service 
+  # Check service name
+  if(-Not ($myService -eq "..." )) 
+  {
+   Get-Service $myService | Where {$_.status -eq 'Stopped'} | Start-Service
+   Write-Host Service has started
+   $returnCode = 0
+  } else {
+   Write-Host Service for start was not set. Start nothing
+   # $returnCode = 0
+  }
+  
+  # Set sheduler update
+  if($ticHour -lt $stopHour) 
+  { 
+   $ticHour = $ticHour + $timerHour 
+  } else { 
+   $ticHour = $startHour 
+  } 
+  Write-Host "Next tic hour is" $ticHour
+ }  else  {  
+ Write-Host Do nothing
+ }
+
+Write-Host One hour tick
+sleep -seconds 3600
+}
